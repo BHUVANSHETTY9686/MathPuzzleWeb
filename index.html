@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Cryptic: Mixed Logic Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .puzzle-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid #334155;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .slot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.5rem;
+            height: 3.5rem;
+            border-radius: 0.5rem;
+            margin: 0.2rem;
+            font-weight: bold;
+            font-size: 1.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .slot-digit {
+            background: #1e293b;
+            border: 2px dashed #64748b;
+            color: #fbbf24;
+        }
+
+        .slot-op {
+            background: #1e293b;
+            border: 2px dashed #64748b;
+            color: #60a5fa;
+            border-radius: 50%;
+            width: 3.5rem;
+        }
+
+        .slot.active {
+            border-color: #f472b6;
+            box-shadow: 0 0 10px #f472b6;
+            background: #2d3748;
+        }
+
+        .slot.filled {
+            border-style: solid;
+            border-color: #475569;
+            background: #1e293b;
+        }
+
+        .slot.hinted {
+            border-color: #10b981;
+            color: #10b981;
+            border-style: solid;
+        }
+
+        .keypad-btn {
+            background: #334155;
+            transition: all 0.1s;
+            user-select: none;
+        }
+
+        .keypad-btn:active {
+            transform: scale(0.95);
+            background: #475569;
+        }
+
+        .level-btn {
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .level-btn.active {
+            background: #be185d;
+            border-color: #f472b6;
+            color: white;
+        }
+
+        .success-flash {
+            animation: success 0.6s ease-out;
+        }
+
+        @keyframes success {
+            0% {
+                background: #0f172a;
+            }
+
+            50% {
+                background: #064e3b;
+            }
+
+            100% {
+                background: #0f172a;
+            }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            75% {
+                transform: translateX(10px);
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <!-- Header -->
+    <header class="w-full max-w-2xl flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-pink-500">MATH CRYPTIC</h1>
+            <p class="text-xs text-slate-400">Mixed Digits & Operators</p>
+        </div>
+        <div class="text-right">
+            <div class="text-sm text-slate-400 uppercase tracking-tighter">Score</div>
+            <div id="score" class="text-2xl font-bold text-white leading-none">0</div>
+        </div>
+    </header>
+
+    <!-- Level Selector -->
+    <nav class="w-full max-w-2xl grid grid-cols-4 gap-2 mb-6">
+        <button onclick="changeLevel(0)" id="lvl-0"
+            class="level-btn active bg-slate-800 p-2 rounded text-[10px] font-bold uppercase">Easy</button>
+        <button onclick="changeLevel(1)" id="lvl-1"
+            class="level-btn bg-slate-800 p-2 rounded text-[10px] font-bold uppercase">Medium</button>
+        <button onclick="changeLevel(2)" id="lvl-2"
+            class="level-btn bg-slate-800 p-2 rounded text-[10px] font-bold uppercase">Hard</button>
+        <button onclick="changeLevel(3)" id="lvl-3"
+            class="level-btn bg-slate-800 p-2 rounded text-[10px] font-bold uppercase">Master</button>
+    </nav>
+
+    <!-- Game Container -->
+    <main id="game-container" class="w-full max-w-2xl">
+
+        <div id="card" class="puzzle-card rounded-2xl p-6 mb-6 text-center">
+
+            <!-- Generate New Puzzle (Test Mode) -->
+            <div class="mb-6">
+                <button onclick="generatePuzzle()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] px-5 py-2 rounded-full font-bold uppercase shadow-lg transition-all border border-indigo-400">
+                    🔄 Generate New Puzzle
+                </button>
+            </div>
+
+            <!-- Puzzle Display -->
+            <div id="expression-display" class="flex flex-wrap justify-center items-center gap-y-4 mb-8 min-h-[100px]">
+                <!-- Generated by JS -->
+            </div>
+
+            <div id="feedback" class="h-6 text-sm mb-4 text-slate-400 italic">Select a slot to start</div>
+
+            <!-- Hint & Reveal Row -->
+            <div class="flex justify-center gap-8 border-t border-slate-700 pt-6">
+                <button onclick="useHint()"
+                    class="text-emerald-400 text-xs font-bold hover:text-emerald-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.674a1 1 0 00.908-.605l3-7A1 1 0 0017.337 8H16.51a4.992 4.992 0 00-9.02 0H6.663a1 1 0 00-.908 1.395l3 7A1 1 0 009.663 17z" />
+                    </svg>
+                    HINT
+                </button>
+                <button onclick="revealAnswer()"
+                    class="text-amber-400 text-xs font-bold hover:text-amber-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    REVEAL
+                </button>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Digits -->
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <div class="text-[10px] text-slate-500 mb-2 uppercase font-bold tracking-widest">Digits</div>
+                <div class="grid grid-cols-5 md:grid-cols-3 gap-2">
+                    <button onclick="input(1)" class="keypad-btn p-3 rounded-lg font-bold">1</button>
+                    <button onclick="input(2)" class="keypad-btn p-3 rounded-lg font-bold">2</button>
+                    <button onclick="input(3)" class="keypad-btn p-3 rounded-lg font-bold">3</button>
+                    <button onclick="input(4)" class="keypad-btn p-3 rounded-lg font-bold">4</button>
+                    <button onclick="input(5)" class="keypad-btn p-3 rounded-lg font-bold">5</button>
+                    <button onclick="input(6)" class="keypad-btn p-3 rounded-lg font-bold">6</button>
+                    <button onclick="input(7)" class="keypad-btn p-3 rounded-lg font-bold">7</button>
+                    <button onclick="input(8)" class="keypad-btn p-3 rounded-lg font-bold">8</button>
+                    <button onclick="input(9)" class="keypad-btn p-3 rounded-lg font-bold">9</button>
+                    <button onclick="input(0)" class="keypad-btn p-3 rounded-lg font-bold">0</button>
+                </div>
+            </div>
+
+            <!-- Operators & Actions -->
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col justify-between">
+                <div>
+                    <div class="text-[10px] text-slate-500 mb-2 uppercase font-bold text-center tracking-widest">
+                        Operators</div>
+                    <div class="grid grid-cols-4 md:grid-cols-2 gap-2">
+                        <button onclick="input('+')"
+                            class="keypad-btn p-3 rounded-lg text-blue-400 text-xl font-bold">+</button>
+                        <button onclick="input('-')"
+                            class="keypad-btn p-3 rounded-lg text-blue-400 text-xl font-bold">-</button>
+                        <button onclick="input('*')"
+                            class="keypad-btn p-3 rounded-lg text-blue-400 text-xl font-bold">×</button>
+                        <button onclick="input('/')"
+                            class="keypad-btn p-3 rounded-lg text-blue-400 text-xl font-bold">÷</button>
+                    </div>
+                </div>
+
+                <button onclick="checkPuzzle()"
+                    class="w-full mt-4 bg-pink-600 hover:bg-pink-500 text-white font-bold py-4 rounded-lg shadow-lg shadow-pink-900/20 uppercase tracking-widest">
+                    Submit Answer
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="mt-8 flex gap-4">
+            <button onclick="clearInputs()"
+                class="flex-1 bg-slate-800 p-3 rounded-lg text-xs uppercase font-bold text-slate-400 hover:bg-slate-700">Clear
+                All</button>
+            <button onclick="generatePuzzle()"
+                class="flex-1 bg-slate-800 p-3 rounded-lg text-xs uppercase font-bold text-slate-400 hover:bg-slate-700">Skip
+                Puzzle</button>
+        </div>
+
+    </main>
+
+    <script>
+        let currentScore = 0;
+        let activeSlotIndex = null;
+        let selectedLevelIdx = 0;
+        let currentPuzzle = { displayParts: [], result: 0 };
+        let userInputs = {};
+        let revealedSlots = new Set();
+
+        const levels = [
+            { complexity: 1 }, // A op B = C
+            { complexity: 2 }, // A op B op C = D
+            { complexity: 3 }, // (A op B) op C = D
+            { complexity: 4 }  // A op B op C op D = E
+        ];
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+
+        function initGame() {
+            generatePuzzle();
+            updateScore();
+        }
+
+        function changeLevel(idx) {
+            selectedLevelIdx = idx;
+            document.querySelectorAll('.level-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === idx);
+            });
+            generatePuzzle();
+        }
+
+        function generatePuzzle() {
+            const level = levels[selectedLevelIdx];
+            let valid = false;
+            let expr = [];
+            let result = 0;
+
+            // Generate a valid math expression
+            while (!valid) {
+                expr = [];
+                const ops = ['+', '-', '*', '/'];
+                const count = level.complexity + 1;
+
+                for (let i = 0; i < count; i++) {
+                    // Random numbers between 1 and 20
+                    expr.push(Math.floor(Math.random() * 20) + 1);
+                    if (i < count - 1) expr.push(ops[Math.floor(Math.random() * ops.length)]);
+                }
+
+                // Complex levels get parentheses
+                if (level.complexity >= 2 && Math.random() > 0.5) {
+                    expr.unshift('(');
+                    expr.splice(4, 0, ')');
+                }
+
+                try {
+                    const str = expr.join(' ');
+                    result = eval(str);
+                    // Ensure whole positive numbers for clean puzzles
+                    if (Number.isInteger(result) && result > 0 && result < 1000) {
+                        valid = true;
+                    }
+                } catch (e) { valid = false; }
+            }
+
+            const displayParts = [];
+            let slotId = 0;
+
+            expr.forEach((part) => {
+                const isOp = ['+', '-', '*', '/'].includes(part);
+                const isParen = ['(', ')'].includes(part);
+
+                if (isParen) {
+                    displayParts.push({ type: 'paren', value: part, hidden: false });
+                } else if (isOp) {
+                    const hide = Math.random() > 0.5;
+                    displayParts.push({ type: 'op', value: part, hidden: hide, index: hide ? slotId++ : null });
+                } else {
+                    const digits = String(part).split('');
+                    digits.forEach((digit) => {
+                        const hide = Math.random() > 0.4;
+                        displayParts.push({ type: 'digit', value: digit, hidden: hide, index: hide ? slotId++ : null });
+                    });
+                }
+            });
+
+            // Ensure at least one hidden slot
+            if (slotId === 0) {
+                const targets = displayParts.filter(p => p.type !== 'paren');
+                const randomPart = targets[Math.floor(Math.random() * targets.length)];
+                randomPart.hidden = true;
+                randomPart.index = 0;
+            }
+
+            currentPuzzle = { displayParts, result };
+            userInputs = {};
+            revealedSlots = new Set();
+
+            // Set initial active slot to the first hidden one
+            const firstHidden = currentPuzzle.displayParts.find(p => p.hidden);
+            activeSlotIndex = firstHidden ? firstHidden.index : null;
+
+            renderPuzzle();
+            showFeedback("Find the missing pieces!", "text-slate-400");
+        }
+
+        function renderPuzzle() {
+            const container = document.getElementById('expression-display');
+            container.innerHTML = '';
+
+            currentPuzzle.displayParts.forEach((part) => {
+                if (part.hidden) {
+                    const slot = document.createElement('div');
+                    const isDigit = part.type === 'digit';
+                    const isHinted = revealedSlots.has(part.index);
+
+                    slot.className = `slot slot-${part.type} ${activeSlotIndex === part.index ? 'active' : ''} ${userInputs[part.index] !== undefined ? 'filled' : ''} ${isHinted ? 'hinted' : ''}`;
+
+                    let val = userInputs[part.index];
+                    if (val === undefined) {
+                        slot.innerText = isDigit ? '?' : '○';
+                    } else {
+                        slot.innerText = val === '*' ? '×' : val === '/' ? '÷' : val;
+                    }
+
+                    slot.onclick = () => setActiveSlot(part.index);
+                    container.appendChild(slot);
+                } else {
+                    const span = document.createElement('span');
+                    const isParen = part.type === 'paren';
+                    span.className = isParen ? "text-2xl text-slate-500 px-1" : "text-3xl font-bold px-1";
+                    span.innerText = part.value === '*' ? '×' : part.value === '/' ? '÷' : part.value;
+                    container.appendChild(span);
+                }
+            });
+
+            container.innerHTML += `<span class="text-3xl font-bold mx-2 text-pink-500">=</span>`;
+            container.innerHTML += `<span class="text-4xl font-bold mx-2 text-white">${currentPuzzle.result}</span>`;
+        }
+
+        function setActiveSlot(index) {
+            activeSlotIndex = index;
+            renderPuzzle();
+        }
+
+        function input(val) {
+            if (activeSlotIndex === null) return;
+            const part = currentPuzzle.displayParts.find(p => p.index === activeSlotIndex);
+            if (!part) return;
+
+            const isDigitInput = !isNaN(val);
+            if ((part.type === 'digit' && isDigitInput) || (part.type === 'op' && !isDigitInput)) {
+                userInputs[activeSlotIndex] = val;
+
+                // Advance to next hidden slot automatically
+                const nextSlot = currentPuzzle.displayParts.find(p => p.hidden && p.index > activeSlotIndex);
+                if (nextSlot) activeSlotIndex = nextSlot.index;
+
+                renderPuzzle();
+            } else {
+                triggerShake();
+            }
+        }
+
+        function useHint() {
+            const hiddenSlots = currentPuzzle.displayParts.filter(p => p.hidden && !revealedSlots.has(p.index));
+            if (hiddenSlots.length === 0) return;
+
+            const randomSlot = hiddenSlots[Math.floor(Math.random() * hiddenSlots.length)];
+            userInputs[randomSlot.index] = randomSlot.value;
+            revealedSlots.add(randomSlot.index);
+            renderPuzzle();
+            showFeedback("Hint revealed!", "text-emerald-400");
+        }
+
+        function revealAnswer() {
+            currentPuzzle.displayParts.forEach(p => {
+                if (p.hidden) {
+                    userInputs[p.index] = p.value;
+                    revealedSlots.add(p.index);
+                }
+            });
+            renderPuzzle();
+            showFeedback("Solution revealed", "text-amber-500");
+        }
+
+        function checkPuzzle() {
+            let evalStr = "";
+            let allFilled = true;
+
+            currentPuzzle.displayParts.forEach(part => {
+                if (part.hidden) {
+                    if (userInputs[part.index] === undefined) allFilled = false;
+                    evalStr += userInputs[part.index];
+                } else {
+                    evalStr += part.value;
+                }
+                if (part.type === 'op' || part.type === 'paren') evalStr += " ";
+            });
+
+            if (!allFilled) {
+                showFeedback("Fill all blanks first!", "text-yellow-500 font-bold");
+                triggerShake();
+                return;
+            }
+
+            try {
+                const userResult = eval(evalStr);
+                if (Math.abs(userResult - currentPuzzle.result) < 0.001) {
+                    currentScore += 10;
+                    updateScore();
+                    showFeedback("CORRECT! +10", "text-green-400 font-bold");
+                    document.body.classList.add('success-flash');
+                    setTimeout(() => {
+                        document.body.classList.remove('success-flash');
+                        generatePuzzle();
+                    }, 800);
+                } else {
+                    showFeedback(`Incorrect result: ${userResult}`, "text-red-400 font-bold");
+                    triggerShake();
+                }
+            } catch (e) {
+                showFeedback("Invalid Math structure!", "text-red-500");
+                triggerShake();
+            }
+        }
+
+        function triggerShake() {
+            const card = document.getElementById('card');
+            card.classList.add('shake');
+            setTimeout(() => card.classList.remove('shake'), 400);
+        }
+
+        function clearInputs() {
+            userInputs = {};
+            // Keep hinted values if any
+            revealedSlots.forEach(id => {
+                const p = currentPuzzle.displayParts.find(part => part.index === id);
+                userInputs[id] = p.value;
+            });
+            const first = currentPuzzle.displayParts.find(p => p.hidden);
+            activeSlotIndex = first ? first.index : null;
+            renderPuzzle();
+            showFeedback("Inputs cleared", "text-slate-500");
+        }
+
+        function showFeedback(msg, colorClass) {
+            const f = document.getElementById('feedback');
+            f.innerText = msg;
+            f.className = "h-6 text-sm mb-4 " + colorClass;
+        }
+
+        function updateScore() {
+            document.getElementById('score').innerText = currentScore;
+        }
+    </script>
+</body>
+
+</html>
